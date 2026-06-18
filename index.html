@@ -52,13 +52,12 @@
   .tag #pvSym img{height:48px; width:auto; display:block}
   .tag #pvSym .ph-sym{font-size:10px; color:#bbb; font-style:italic}
   .tag .mid{grid-column:2; grid-row:2; text-align:center}
-  .tag .num{font-family:var(--mono); font-weight:700; font-size:28px; line-height:1.1}
+  .tag .num{font-family:var(--mono); font-weight:700; font-size:28px; line-height:1.1; color:#000}
   .tag .logo{min-height:24px; margin-top:2px}
   .tag .logo img{max-height:24px; max-width:120px; display:block; margin:0 auto}
   .tag .logo .ph-text{font-size:10px; color:#999; font-style:italic}
-  .tag .ph{font-weight:700; font-size:12px; margin-top:2px}
+  .tag .ph{font-weight:700; font-size:12px; margin-top:2px; color:#000}
   .tag .f{grid-column:1/3; grid-row:3; text-align:center; color:var(--red); font-weight:700; font-size:8px; letter-spacing:.02em}
-  /* compact preview (small ID label) */
   .tag.compact{grid-template-rows:1fr auto}
   .tag.compact .h, .tag.compact .logo, .tag.compact .ph{display:none}
   .tag.compact #pvSym{grid-row:1} .tag.compact #pvSym img{height:38px}
@@ -90,7 +89,6 @@
         <select id="format"></select>
       </div>
 
-      <!-- custom sheet builder (shown only for Custom) -->
       <div id="customBox" style="display:none">
         <div class="row blk">
           <div><label class="fld" for="cPage">Page</label><select id="cPage"><option value="letter">Letter (8.5×11)</option><option value="a4">A4 (210×297mm)</option></select></div>
@@ -133,15 +131,15 @@
 
       <div id="rangeFields">
         <div class="row blk">
-          <div><label class="fld" for="start">From</label><input id="start" class="mono" type="number" value="5000"></div>
-          <div><label class="fld" for="end">To</label><input id="end" class="mono" type="number" value="5009"></div>
+          <div><label class="fld" for="start">From</label><input id="start" class="mono" type="number" value="1"></div>
+          <div><label class="fld" for="end">To</label><input id="end" class="mono" type="number" value="1000"></div>
         </div>
       </div>
 
       <div id="listFields" style="display:none">
         <div class="blk">
           <label class="fld" for="list">Tag numbers (comma or space separated)</label>
-          <textarea id="list" placeholder="5042, 5108, 5511">5042, 5108, 5511</textarea>
+          <textarea id="list" placeholder="42, 108, 511">42, 108, 511</textarea>
           <div class="hint">For reprints — enter only the tags you need.</div>
         </div>
       </div>
@@ -153,7 +151,7 @@
 
       <div class="blk">
         <label class="fld" for="phone">Phone</label>
-        <input id="phone" class="mono" value="1.937.506.8444">
+        <input id="phone" class="mono" value="+1 657-502-6544">
       </div>
 
       <button class="go" id="go">Generate PDF</button>
@@ -168,14 +166,14 @@
         <div class="h" id="pvHeader">Electrical Energy Isolation Point</div>
         <div id="pvSym"><span class="ph-sym">[ symbol ]</span></div>
         <div class="mid">
-          <div class="num" id="pvNum">E-5000</div>
+          <div class="num" id="pvNum">E-0001</div>
           <div class="logo" id="pvLogo"><span class="ph-text">[ logo ]</span></div>
-          <div class="ph" id="pvPhone">1.937.506.8444</div>
+          <div class="ph" id="pvPhone">+1 657-502-6544</div>
         </div>
-        <div class="f">DO NOT REMOVE THIS TAG</div>
+        <div class="f" id="pvFooter">DO NOT REMOVE THIS TAG</div>
       </div>
       <div class="asset-hints" id="assetHints"></div>
-      <p class="note">Preview shows the chosen format's shape. <strong>Test-print each format on its real stock at 100% scale</strong> before a production run.</p>
+      <p class="note">Preview shows the chosen format and theme. <strong>Test-print each format on its real stock at 100% scale</strong> before a production run.</p>
     </div>
   </div>
 </div>
@@ -185,56 +183,68 @@
    ISOLATION LABEL GENERATOR  —  client-side, no server required.
    Renders print-ready PDFs in the browser with jsPDF.
 
-   v1.3.0 merges the responsive-generation work (progress bar + chunked
-   render loop + compress) with config-driven energy types, companies,
-   label formats, and image aliasing (each image embedded once).
+   v1.4.0 adds per-energy-type THEMES (border + header + number + footer color,
+   plus background color). The phone number stays black across all themes.
 
-   CONFIG (everything is data-driven — edit these, drop matching files in /assets):
-     ENERGY_TYPES  -> header text, symbol, default prefix/pad, default brand
+   CONFIG (data-driven — edit these, drop matching files in /assets):
+     THEMES        -> color (perimeter/header/footer), bg (fill), num (number; defaults to color)
+     ENERGY_TYPES  -> header text, symbol, prefix/pad, default brand, theme
      COMPANIES     -> logo + default phone
      LAYOUTS       -> page size, grid, label size, margins, gaps (Avery presets + Custom)
 
    ASSETS load by relative path; the tool must be SERVED with /assets beside it
-   (GitHub Pages). Opening index.html alone, locally, will not load images.
+   (GitHub Pages). Symbol artwork keeps its own colors — themes do not recolor it.
 
    CALIBRATION: preset geometry uses standard Avery values. Test-print each
    format you intend to use; tweak the LAYOUTS entry if tags drift.
    ========================================================================= */
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const BUILD_DATE = "2026-06-17";
-const PT = 72;   // points per inch
+const PT = 72;
 
-/* --- ENERGY TYPES: header, symbol, default prefix/pad, default brand --- */
+/* --- THEMES: color = perimeter+header+footer (and number unless num given); bg = fill --- */
+const THEMES = {
+  red:    { color:[225,37,27],  bg:[255,255,255], num:[0,0,0] }, // electrical: red theme, white bg, BLACK number (legacy)
+  orange: { color:[224,126,52], bg:[255,255,255] },              // gas
+  blue:   { color:[63,114,181], bg:[255,255,255] },              // pneumatic + hydraulic
+  black:  { color:[17,17,17],   bg:[246,209,20] },               // gravity: black theme, yellow bg
+  teal:   { color:[58,184,170], bg:[255,255,255] }               // water
+};
+
+/* --- ENERGY TYPES --- */
 const ENERGY_TYPES = {
-  electrical: { label:"Electrical", prefix:"E-",  pad:4, company:"psg",   symbol:"assets/symbols/electrical.svg" }, // base-building uses pad 3
-  gas:        { label:"Gas",        prefix:"G-",  pad:3, company:"psg",   symbol:"assets/symbols/gas.svg" },
-  pneumatic:  { label:"Pneumatic",  prefix:"P-",  pad:3, company:"psg",   symbol:"assets/symbols/pneumatic.svg" },
-  gravity:    { label:"Gravity",    prefix:"GR-", pad:3, company:"psg",   symbol:"assets/symbols/gravity.svg" },
-  water:      { label:"Water",      prefix:"W-",  pad:3, company:"psg",   symbol:"assets/symbols/water.svg" },
-  hydraulic:  { label:"Hydraulic",  prefix:"H-",  pad:4, company:"magna", symbol:"assets/symbols/hydraulic.svg" }
+  electrical: { label:"Electrical", prefix:"E-",  pad:4, company:"psg",   theme:"red",    symbol:"assets/symbols/electrical.svg" }, // base-building uses pad 3
+  gas:        { label:"Gas",        prefix:"G-",  pad:3, company:"psg",   theme:"orange", symbol:"assets/symbols/gas.svg" },
+  pneumatic:  { label:"Pneumatic",  prefix:"P-",  pad:3, company:"psg",   theme:"blue",   symbol:"assets/symbols/pneumatic.svg" },
+  gravity:    { label:"Gravity",    prefix:"GR-", pad:3, company:"psg",   theme:"black",  symbol:"assets/symbols/gravity.svg" },
+  water:      { label:"Water",      prefix:"W-",  pad:3, company:"psg",   theme:"teal",   symbol:"assets/symbols/water.svg" },
+  hydraulic:  { label:"Hydraulic",  prefix:"H-",  pad:4, company:"magna", theme:"blue",   symbol:"assets/symbols/hydraulic.svg" }
 };
 
 /* --- COMPANIES: logo + default phone --- */
 const COMPANIES = {
-  psg:   { label:"Power Solutions Group", logo:"assets/logos/pgs-logo.jpg",   fmt:"JPEG", phone:"1.937.506.8444" },
-  magna: { label:"Magna IV Engineering",  logo:"assets/logos/magna-logo.png", fmt:"PNG",  phone:"" }            // TODO confirm Magna phone
+  psg:   { label:"Power Solutions Group", logo:"assets/logos/pgs-logo.jpg",   fmt:"JPEG", phone:"+1 657-502-6544" },
+  magna: { label:"Magna IV Engineering",  logo:"assets/logos/magna-logo.png", fmt:"PNG",  phone:"+1 604-421-8020" }
 };
 
 /* --- LAYOUTS: sizes in INCHES. content 'iso' = full tag, 'compact' = number-first --- */
 const LAYOUTS = {
-  iso_5163:  { name:'Isolation — 2" × 4" (10-up, Avery 5163/8163)',   avery:'5163', page:'letter', cols:2, rows:5,  labelW:4,     labelH:2,     mL:0.15625, mT:0.5, gX:0.1875, gY:0, content:'iso' },
+  iso_5163:  { name:'Isolation — 2" × 4" (10-up, Avery 5163/8163)',     avery:'5163', page:'letter', cols:2, rows:5,  labelW:4,     labelH:2,     mL:0.15625, mT:0.5, gX:0.1875, gY:0, content:'iso' },
   warn_5164: { name:'Large warning — 3⅓" × 4" (6-up, Avery 5164/8164)', avery:'5164', page:'letter', cols:2, rows:3,  labelW:4,     labelH:3.333, mL:0.15625, mT:0.5, gX:0.1875, gY:0, content:'iso' },
-  id_5160:   { name:'Small asset ID — 1" × 2⅝" (30-up, Avery 5160/8160)', avery:'5160', page:'letter', cols:3, rows:10, labelW:2.625, labelH:1,     mL:0.1875,  mT:0.5, gX:0.125,  gY:0, content:'compact' },
+  id_5160:   { name:'Small asset ID — 1" × 2⅝" (30-up, Avery 5160/8160)', avery:'5160', page:'letter', cols:3, rows:10, labelW:2.625, labelH:1,   mL:0.1875,  mT:0.5, gX:0.125,  gY:0, content:'compact' },
   custom:    { name:'Custom sheet builder', custom:true }
 };
 
-const RED=[225,37,27], BLACK=[0,0,0], GREY=[150,150,150];
+const BLACK=[0,0,0], GREY=[150,150,150];
 
 let mode='range', curFormat='iso_5163', curEnergy='electrical', curCompany='psg';
 const symCache={}, logoCache={};
 const $ = id => document.getElementById(id);
 const num = (v,d)=>{ const x=parseFloat(v); return isFinite(x)?x:d; };
 const clampInt = (v,lo,hi,d)=>{ let x=parseInt(v,10); if(!isFinite(x))x=d; return Math.max(lo,Math.min(hi,x)); };
+const rgb = a => `rgb(${a[0]},${a[1]},${a[2]})`;
+const isWhite = a => a[0]===255 && a[1]===255 && a[2]===255;
+const theme = t => THEMES[t.theme] || THEMES.red;
 
 /* ---------- asset loading ---------- */
 function loadImage(src){ return new Promise((ok,no)=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=()=>no(new Error(src)); im.src=src; }); }
@@ -270,9 +280,20 @@ async function applyEnergy(){
   const t=ENERGY_TYPES[curEnergy];
   $('prefix').value=t.prefix; $('pad').value=t.pad;
   $('pvHeader').textContent=`${t.label} Energy Isolation Point`;
-  curCompany=t.company; $('company').value=curCompany;          // energy type sets the default brand footer
+  applyTheme(t);
+  curCompany=t.company; $('company').value=curCompany;
   const s=await ensureSymbol(curEnergy); setSymbolPreview(!!s,t.symbol);
   await applyCompany();
+}
+function applyTheme(t){
+  const th=theme(t), col=rgb(th.color), bg=rgb(th.bg||[255,255,255]), nu=rgb(th.num||th.color);
+  const tag=$('tag');
+  tag.style.borderColor=col;
+  tag.style.background=bg;
+  $('pvHeader').style.color=col;
+  $('pvNum').style.color=nu;
+  $('pvFooter').style.color=col;
+  $('pvPhone').style.color='rgb(0,0,0)';   // phone stays black
 }
 async function applyCompany(){
   const c=COMPANIES[curCompany];
@@ -360,36 +381,38 @@ function refresh(){
   ro.innerHTML = `${nums.length} label${nums.length!==1?'s':''} &middot; ${sheets} sheet${sheets!==1?'s':''} &middot; ${name}`;
 }
 
-/* ---------- content drawers (scale to the label box) ---------- */
+/* ---------- content drawers (theme-aware, scale to the label box) ---------- */
 function placeAlias(doc, data, type, aspect, bx, by, bw, bh, alias){
   let w=bw, h=bw/aspect; if(h>bh){ h=bh; w=bh*aspect; }
   doc.addImage(data, type, bx+(bw-w)/2, by+(bh-h)/2, w, h, alias, 'FAST');
 }
 function drawIso(doc,x,y,w,h,c){
   const cx=x+w/2, ins=h*0.045, r=(c.radius!=null?c.radius:h*0.0625);
-  doc.setDrawColor(...RED); doc.setLineWidth(Math.max(1,h*0.015));
+  if(!isWhite(c.bg)){ doc.setFillColor(...c.bg); doc.roundedRect(x+h*0.015,y+h*0.015,w-h*0.03,h-h*0.03,h*0.075,h*0.075,'F'); }
+  doc.setDrawColor(...c.col); doc.setLineWidth(Math.max(1,h*0.015));
   doc.roundedRect(x+ins,y+ins,w-2*ins,h-2*ins,r,r,'S');
-  doc.setTextColor(...RED); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.072);
+  doc.setTextColor(...c.col); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.072);
   doc.text(c.header,cx,y+h*0.155,{align:'center',maxWidth:w*0.92});
   if(c.sym) placeAlias(doc,c.sym.dataURL,'PNG',c.sym.aspect,x+w*0.09,y+h*0.26,w*0.236,h*0.43,c.symAlias);
-  doc.setTextColor(...BLACK); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.194);
+  doc.setTextColor(...c.num); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.194);
   doc.text(c.text,x+w*0.646,y+h*0.403,{align:'center'});
   if(c.logo) placeAlias(doc,c.logo.dataURL,c.logoFmt,c.logo.aspect,x+w*0.521,y+h*0.486,w*0.285,h*0.222,c.logoAlias);
   else { doc.setTextColor(...GREY); doc.setFont('helvetica','italic'); doc.setFontSize(h*0.055); doc.text('[ logo ]',x+w*0.646,y+h*0.60,{align:'center'}); }
   doc.setTextColor(...BLACK); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.087);
-  doc.text(c.phone,x+w*0.646,y+h*0.778,{align:'center'});
-  doc.setTextColor(...RED); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.054);
+  doc.text(c.phone,x+w*0.646,y+h*0.778,{align:'center'});   // phone stays black
+  doc.setTextColor(...c.col); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.054);
   doc.text('DO NOT REMOVE THIS TAG',cx,y+h*0.903,{align:'center'});
 }
 function drawCompact(doc,x,y,w,h,c){
   const ins=h*0.06, r=(c.radius!=null?c.radius:h*0.12);
-  doc.setDrawColor(...RED); doc.setLineWidth(Math.max(0.8,h*0.03));
+  if(!isWhite(c.bg)){ doc.setFillColor(...c.bg); doc.roundedRect(x+h*0.02,y+h*0.02,w-h*0.04,h-h*0.04,h*0.14,h*0.14,'F'); }
+  doc.setDrawColor(...c.col); doc.setLineWidth(Math.max(0.8,h*0.03));
   doc.roundedRect(x+ins,y+ins,w-2*ins,h-2*ins,r,r,'S');
   let nx=x+w*0.5;
   if(c.sym){ placeAlias(doc,c.sym.dataURL,'PNG',c.sym.aspect,x+w*0.06,y+h*0.18,h*0.66,h*0.64,c.symAlias); nx=x+w*0.60; }
-  doc.setTextColor(...BLACK); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.40);
+  doc.setTextColor(...c.num); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.40);
   doc.text(c.text,nx,y+h*0.50,{align:'center'});
-  doc.setTextColor(...RED); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.13);
+  doc.setTextColor(...c.col); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.13);
   doc.text('DO NOT REMOVE',nx,y+h*0.84,{align:'center'});
 }
 
@@ -408,7 +431,7 @@ async function generate(){
   if(nums.length>1500 && !confirm(`${nums.length} labels will generate a large PDF in your browser and may take a while. Continue?`)) return;
 
   const sym=await ensureSymbol(curEnergy), logo=await ensureLogo(curCompany);
-  const et=ENERGY_TYPES[curEnergy], co=COMPANIES[curCompany];
+  const et=ENERGY_TYPES[curEnergy], co=COMPANIES[curCompany], th=theme(et);
   const go=$('go'); go.disabled=true; go.textContent='Generating…';
   $('progress').style.display='block'; $('progressBar').style.width='0%';
   try{
@@ -422,6 +445,7 @@ async function generate(){
       keywords:`iso-label-gen v${VERSION}; ${et.label}; ${co.label}; format ${L.avery||'custom'}; generated ${new Date().toISOString().slice(0,10)}; tags ${fmt(nums[0])}-${fmt(nums[nums.length-1])}; ${nums.length} labels`
     });
     const ctx={ header:`${et.label} Energy Isolation Point`, phone:$('phone').value||'',
+                col:th.color, bg:(th.bg||[255,255,255]), num:(th.num||th.color),
                 sym, symAlias:'sym-'+curEnergy, logo, logoFmt:co.fmt, logoAlias:'logo-'+curCompany,
                 radius:(L.custom?L.radiusPt:null) };
     const drawer = (L.content==='compact') ? drawCompact : drawIso;
