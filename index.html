@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isolation Label Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#1a1d21; --paper:#eceef1; --card:#ffffff; --line:#dfe2e7;
+    --muted:#6b7280; --red:#E1251B; --yellow:#FFD200; --field:#f7f8fa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    line-height:1.45; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px; margin:0 auto; padding:28px 20px 64px}
+  header{display:flex; align-items:center; gap:14px; margin-bottom:6px}
+  .hazard{width:34px; height:30px; flex:none}
+  h1{font-size:22px; margin:0; letter-spacing:-.01em}
+  .ver{font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px}
+  .sub{color:var(--muted); font-size:14px; margin:2px 0 24px}
+  .grid{display:grid; grid-template-columns:1fr 360px; gap:22px; align-items:start}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px}
+  .seg{display:flex; background:var(--field); border:1px solid var(--line); border-radius:9px; padding:3px; margin-bottom:18px}
+  .seg button{flex:1; border:0; background:none; padding:9px; font:inherit; font-weight:600; font-size:14px; color:var(--muted); border-radius:7px; cursor:pointer}
+  .seg button[aria-selected="true"]{background:var(--ink); color:#fff}
+  label.fld{display:block; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0 0 6px}
+  input,textarea{width:100%; padding:11px 12px; font:inherit; background:var(--field); border:1px solid var(--line); border-radius:8px; color:var(--ink)}
+  input:focus,textarea:focus{outline:2px solid var(--ink); outline-offset:-1px; border-color:var(--ink)}
+  input.mono{font-family:var(--mono)}
+  textarea{font-family:var(--mono); min-height:76px; resize:vertical}
+  .row{display:flex; gap:12px}
+  .row>div{flex:1}
+  .blk{margin-bottom:16px}
+  .hint{font-size:12px; color:var(--muted); margin-top:6px}
+  .file{font-size:13px}
+  .file input{padding:8px; background:none; border:1px dashed var(--line)}
+  button.go{width:100%; margin-top:8px; padding:14px; font:inherit; font-weight:700; font-size:15px; color:var(--ink); background:var(--yellow); border:1px solid #d8b400; border-radius:9px; cursor:pointer; transition:filter .12s}
+  button.go:hover{filter:brightness(.96)}
+  button.go:disabled{opacity:.5; cursor:not-allowed}
+  .readout{font-family:var(--mono); font-size:13px; color:var(--ink); background:var(--field); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-top:14px}
+  .readout .warn{color:var(--red); font-weight:600}
+  .pv-label{font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:10px}
+  /* Live label preview — mirrors the printed tag */
+  .tag{aspect-ratio:2/1; border:3px solid var(--red); border-radius:12px; background:#fff; padding:8px 12px;
+       display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto 1fr auto; gap:2px 8px; align-items:center; color:#000}
+  .tag .h{grid-column:1/3; text-align:center; color:var(--red); font-weight:700; font-size:12px}
+  .tag .tri{grid-row:2; width:60px; height:54px; align-self:center}
+  .tag .mid{grid-row:2; text-align:center}
+  .tag .num{font-family:var(--mono); font-weight:700; font-size:30px; line-height:1.1}
+  .tag .logo{font-size:10px; color:#999; font-style:italic; margin-top:2px}
+  .tag .logo img{max-height:26px; max-width:120px}
+  .tag .ph{font-weight:700; font-size:13px; margin-top:2px}
+  .tag .f{grid-column:1/3; text-align:center; color:var(--red); font-weight:700; font-size:8.5px; letter-spacing:.02em}
+  .note{font-size:12px; color:var(--muted); margin-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="hazard" viewBox="0 0 100 90" aria-hidden="true">
+      <polygon points="50,6 96,84 4,84" fill="#FFD200" stroke="#111" stroke-width="7" stroke-linejoin="round"/>
+      <polygon points="56,30 33,54 47,54 41,74 67,44 53,44" fill="#111"/>
+    </svg>
+    <div>
+      <h1>Isolation Label Generator</h1>
+      <div class="ver" id="verBadge"></div>
+    </div>
+  </header>
+  <p class="sub">Enter a range or specific tag numbers, then generate a print-ready sheet.</p>
+
+  <div class="grid">
+    <!-- Controls -->
+    <div class="card">
+      <div class="seg" role="tablist">
+        <button id="tabRange" role="tab" aria-selected="true">Number range</button>
+        <button id="tabList" role="tab" aria-selected="false">Specific tags</button>
+      </div>
+
+      <div id="rangeFields">
+        <div class="row blk">
+          <div><label class="fld" for="start">From</label><input id="start" class="mono" type="number" value="5000"></div>
+          <div><label class="fld" for="end">To</label><input id="end" class="mono" type="number" value="5009"></div>
+        </div>
+      </div>
+
+      <div id="listFields" style="display:none">
+        <div class="blk">
+          <label class="fld" for="list">Tag numbers (comma or space separated)</label>
+          <textarea id="list" placeholder="5042, 5108, 5511">5042, 5108, 5511</textarea>
+          <div class="hint">For reprints — enter only the tags you need.</div>
+        </div>
+      </div>
+
+      <div class="row blk">
+        <div><label class="fld" for="prefix">Prefix</label><input id="prefix" class="mono" value="E-"></div>
+        <div><label class="fld" for="pad">Pad to digits</label><input id="pad" class="mono" type="number" value="0" min="0" max="8"></div>
+      </div>
+
+      <div class="blk">
+        <label class="fld" for="phone">Phone</label>
+        <input id="phone" class="mono" value="1.937.506.8444">
+      </div>
+
+      <div class="blk file">
+        <label class="fld" for="logo">Logo (optional)</label>
+        <input id="logo" type="file" accept="image/png,image/jpeg">
+        <div class="hint">Loads for this session. For the deployed version, embed it in the file (see code comment).</div>
+      </div>
+
+      <button class="go" id="go">Generate PDF</button>
+      <div class="readout" id="readout"></div>
+    </div>
+
+    <!-- Live preview -->
+    <div class="card">
+      <div class="pv-label">Preview</div>
+      <div class="tag" id="tag">
+        <div class="h">Electrical Energy Isolation Point</div>
+        <svg class="tri" viewBox="0 0 100 90" aria-hidden="true">
+          <polygon points="50,6 96,84 4,84" fill="#FFD200" stroke="#111" stroke-width="7" stroke-linejoin="round"/>
+          <polygon points="56,30 33,54 47,54 41,74 67,44 53,44" fill="#111"/>
+        </svg>
+        <div class="mid">
+          <div class="num" id="pvNum">E-5000</div>
+          <div class="logo" id="pvLogo">[ logo ]</div>
+          <div class="ph" id="pvPhone">1.937.506.8444</div>
+        </div>
+        <div class="f">DO NOT REMOVE THIS TAG</div>
+      </div>
+      <p class="note">Layout: Avery 5163 — 2"&times;4", 10 per US&nbsp;Letter sheet. <strong>Test-print on your actual stock before rollout</strong> and nudge the geometry constants if the tags drift.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   ISOLATION LABEL GENERATOR  —  client-side, no server required.
+   Renders a print-ready PDF in the browser with jsPDF.
+
+   CALIBRATION (the one thing that must match your hardware):
+   The constants below are Avery 5163 (2"x4", 10-up). If your tags print
+   slightly off, adjust MARGIN_* / GUTTER / LABEL_* (values are in points;
+   72 points = 1 inch) and test-print again.
+
+   LOGO: paste the real logo's base64 data URL into LOGO_DATAURL to bake it
+   into the deployed file, e.g. "data:image/png;base64,iVBORw0KG..."
+   ========================================================================= */
+const VERSION = "1.0.0";       // bump on every change (see README changelog)
+const BUILD_DATE = "2026-06-17";
+const LOGO_DATAURL = "";   // <-- embed the PSG logo here for the deployed version
+
+// --- label-stock geometry (points) ---
+const PT = 72;
+const PAGE_W = 8.5*PT, PAGE_H = 11*PT;
+const COLS = 2, ROWS = 5;
+const LABEL_W = 4*PT, LABEL_H = 2*PT;
+const MARGIN_LEFT = 0.15625*PT;   // adjust to your stock
+const MARGIN_TOP  = 0.5*PT;       // adjust to your stock
+const COL_GUTTER  = 0.1875*PT;
+const ROW_GUTTER  = 0;
+const PER_PAGE = COLS*ROWS;
+
+const RED=[225,37,27], YELLOW=[255,210,0], BLACK=[0,0,0], GREY=[150,150,150];
+
+let mode = 'range';
+let sessionLogo = LOGO_DATAURL || null;
+
+const $ = id => document.getElementById(id);
+
+// ---------- input -> list of numbers ----------
+function getNumbers(){
+  if(mode==='range'){
+    const a = parseInt($('start').value,10), b = parseInt($('end').value,10);
+    if(isNaN(a)||isNaN(b)) return {nums:[], err:'Enter a start and end number.'};
+    if(b<a) return {nums:[], err:'“To” must be greater than or equal to “From”.'};
+    const nums=[]; for(let n=a;n<=b;n++) nums.push(n);
+    return {nums};
+  }
+  const nums = ($('list').value.match(/\d+/g)||[]).map(Number);
+  if(!nums.length) return {nums:[], err:'Enter at least one tag number.'};
+  return {nums};
+}
+function fmt(n){
+  const pad = parseInt($('pad').value,10)||0;
+  const body = pad>0 ? String(n).padStart(pad,'0') : String(n);
+  return ($('prefix').value||'') + body;
+}
+
+// ---------- live preview + readout ----------
+function refresh(){
+  const {nums,err} = getNumbers();
+  $('pvNum').textContent = nums.length ? fmt(nums[0]) : fmt(0);
+  $('pvPhone').textContent = $('phone').value || '';
+  const pvLogo = $('pvLogo');
+  pvLogo.innerHTML = sessionLogo ? `<img src="${sessionLogo}" alt="logo">` : '[ logo ]';
+  const ro = $('readout'), go = $('go');
+  if(err){ ro.innerHTML = `<span class="warn">${err}</span>`; go.disabled = true; return; }
+  go.disabled = false;
+  const sheets = Math.ceil(nums.length/PER_PAGE);
+  ro.innerHTML = `${nums.length} label${nums.length!==1?'s':''} &middot; ${sheets} sheet${sheets!==1?'s':''} &middot; Avery 5163 (10/sheet)`;
+}
+
+// ---------- draw one label at top-left (x,y) ----------
+function fillPoly(doc, pts, rgb){
+  doc.setFillColor(...rgb);
+  const d = []; for(let i=1;i<pts.length;i++) d.push([pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]]);
+  doc.lines(d, pts[0][0], pts[0][1], [1,1], 'F', true);
+}
+function drawLabel(doc, x, y, text, phone){
+  // border
+  doc.setDrawColor(...RED); doc.setLineWidth(2.2);
+  doc.roundedRect(x+6, y+6, LABEL_W-12, LABEL_H-12, 9, 9, 'S');
+  // header
+  doc.setTextColor(...RED); doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
+  doc.text('Electrical Energy Isolation Point', x+LABEL_W/2, y+22, {align:'center'});
+  // hazard triangle (left)
+  const cx=x+60, top=y+44, h=58, half=33;
+  doc.setFillColor(...YELLOW); doc.setDrawColor(...BLACK); doc.setLineWidth(1.6); doc.setLineJoin('round');
+  doc.triangle(cx, top, cx-half, top+h, cx+half, top+h, 'FD');
+  // bolt
+  fillPoly(doc, [[cx+5,top+14],[cx-12,top+30],[cx-2,top+30],[cx-7,top+46],[cx+13,top+24],[cx+1,top+24]], BLACK);
+  // serial number (upper right)
+  doc.setTextColor(...BLACK); doc.setFont('helvetica','bold'); doc.setFontSize(28);
+  doc.text(text, x+186, y+58, {align:'center'});
+  // logo or placeholder
+  if(sessionLogo){
+    try{ doc.addImage(sessionLogo, 'PNG', x+150, y+70, 72, 30, undefined, 'FAST'); }catch(e){}
+  } else {
+    doc.setTextColor(...GREY); doc.setFont('helvetica','italic'); doc.setFontSize(8);
+    doc.text('[ logo ]', x+186, y+86, {align:'center'});
+  }
+  // phone
+  doc.setTextColor(...BLACK); doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
+  doc.text(phone, x+186, y+112, {align:'center'});
+  // footer
+  doc.setTextColor(...RED); doc.setFont('helvetica','bold'); doc.setFontSize(7.8);
+  doc.text('DO NOT REMOVE THIS TAG', x+LABEL_W/2, y+130, {align:'center'});
+}
+
+// ---------- build the PDF ----------
+function generate(){
+  const {nums,err} = getNumbers();
+  if(err || !nums.length) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'letter'});
+  doc.setProperties({
+    title: `Isolation labels ${fmt(nums[0])}\u2013${fmt(nums[nums.length-1])}`,
+    subject: `${nums.length} labels, ${Math.ceil(nums.length/PER_PAGE)} sheet(s)`,
+    author: 'Isolation Label Generator',
+    creator: `Isolation Label Generator v${VERSION} (${BUILD_DATE})`,
+    keywords: `iso-label-gen v${VERSION}; generated ${new Date().toISOString().slice(0,10)}; tags ${fmt(nums[0])}-${fmt(nums[nums.length-1])}; ${nums.length} labels`
+  });
+  const phone = $('phone').value || '';
+  nums.forEach((n,i)=>{
+    if(i>0 && i%PER_PAGE===0) doc.addPage();
+    const slot=i%PER_PAGE, col=slot%COLS, row=Math.floor(slot/COLS);
+    const x = MARGIN_LEFT + col*(LABEL_W+COL_GUTTER);
+    const y = MARGIN_TOP  + row*(LABEL_H+ROW_GUTTER);
+    drawLabel(doc, x, y, fmt(n), phone);
+  });
+  const first = fmt(nums[0]), last = fmt(nums[nums.length-1]);
+  doc.save(`isolation-labels_${first}_to_${last}.pdf`);
+}
+
+// ---------- wiring ----------
+function setMode(m){
+  mode=m;
+  $('tabRange').setAttribute('aria-selected', m==='range');
+  $('tabList').setAttribute('aria-selected', m==='list');
+  $('rangeFields').style.display = m==='range' ? '' : 'none';
+  $('listFields').style.display  = m==='list'  ? '' : 'none';
+  refresh();
+}
+$('tabRange').onclick = ()=>setMode('range');
+$('tabList').onclick  = ()=>setMode('list');
+['start','end','list','prefix','pad','phone'].forEach(id=> $(id).addEventListener('input', refresh));
+$('logo').addEventListener('change', e=>{
+  const f=e.target.files[0]; if(!f){ sessionLogo=LOGO_DATAURL||null; refresh(); return; }
+  const r=new FileReader(); r.onload=()=>{ sessionLogo=r.result; refresh(); }; r.readAsDataURL(f);
+});
+$('go').onclick = generate;
+$('verBadge').textContent = 'v' + VERSION;
+refresh();
+</script>
+</body>
+</html>
