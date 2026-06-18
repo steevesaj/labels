@@ -48,7 +48,7 @@
   .progress{height:8px; background:#e5e7eb; border-radius:999px; overflow:hidden; margin-top:10px; display:none}
   .progress > div{height:100%; width:0%; background:var(--ink); transition:width .1s linear}
   .pv-label{font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:10px}
-  .tag{aspect-ratio:2/1; border:3px solid var(--red); border-radius:12px; background:#fff; padding:8px 12px;
+  .tag{aspect-ratio:2/1; border:3px solid var(--red); border-radius:12px; background:#fff; padding:8px 10px;
        display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto 1fr auto; gap:2px 8px; align-items:center; color:#000}
   .tag .h{grid-column:1/-1; grid-row:1; text-align:center; color:var(--red); font-weight:700; font-size:12px; line-height:1.15}
   .tag #pvSym{grid-column:1; grid-row:2; align-self:center; justify-self:center}
@@ -58,11 +58,12 @@
   .tag .site{font-family:var(--mono); font-weight:700; font-size:11px; letter-spacing:.06em; line-height:1; margin-bottom:2px}
   .tag .num{font-family:var(--mono); font-weight:700; font-size:26px; line-height:1.1; color:#000}
   .tag .logo{min-height:22px; margin-top:2px}
-  .tag .logo img{max-height:22px; max-width:118px; display:block; margin:0 auto}
+  .tag .logo img{max-height:22px; max-width:116px; display:block; margin:0 auto}
   .tag .logo .ph-text{font-size:10px; color:#999; font-style:italic}
   .tag .ph{font-weight:700; font-size:12px; margin-top:2px; color:#000}
-  .tag #pvQR{grid-column:3; grid-row:2; display:none; align-items:center; justify-content:center}
-  .tag #pvQR img{width:auto; max-width:100%; max-height:60px; image-rendering:pixelated; display:block}
+  .tag #pvQR{grid-column:3; grid-row:2; display:none; align-items:center; justify-content:center; gap:3px}
+  .tag #pvQR img{width:auto; max-width:100%; max-height:58px; image-rendering:pixelated; display:block}
+  .tag #pvQR .aid-vert{writing-mode:vertical-rl; transform:rotate(180deg); font-family:var(--mono); font-weight:700; font-size:7px; letter-spacing:.04em; white-space:nowrap; line-height:1; color:var(--red)}
   .tag.has-qr{grid-template-columns:auto 1fr auto}
   .tag.has-qr #pvQR{display:flex}
   .tag .f{grid-column:1/-1; grid-row:3; text-align:center; color:var(--red); font-weight:700; font-size:8px; letter-spacing:.02em}
@@ -71,8 +72,13 @@
   .tag.compact #pvSym{grid-row:1} .tag.compact #pvSym img{height:38px}
   .tag.compact .mid{grid-row:1} .tag.compact .num{font-size:34px}
   .tag.compact .f{grid-row:2}
+  .assetid{margin-top:14px; padding:10px 12px; background:var(--field); border:1px solid var(--line); border-radius:8px}
+  .aid-k{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted)}
+  .aid-sub{font-weight:500; text-transform:none; letter-spacing:0}
+  .aid-val{font-family:var(--mono); font-weight:700; font-size:16px; margin:3px 0 4px; color:var(--ink); word-break:break-all}
+  .aid-leg{font-size:11px; color:var(--muted); line-height:1.5} .aid-leg b{color:var(--ink); font-family:var(--mono)}
   .note{font-size:12px; color:var(--muted); margin-top:12px}
-  .asset-hints{font-size:12px; color:var(--red); margin-top:8px; font-family:var(--mono); min-height:16px}
+  .asset-hints{font-size:12px; color:var(--red); margin-top:8px; font-family:var(--mono); min-height:14px}
 </style>
 </head>
 <body>
@@ -164,19 +170,15 @@
 
       <div class="divider"></div>
 
-      <div class="blk">
-        <label class="fld" for="siteCode">Site code</label>
-        <input id="siteCode" class="mono" value="YVR6" placeholder="e.g., YVR6">
+      <div class="row blk">
+        <div><label class="fld" for="siteCode">Site code</label><input id="siteCode" class="mono" value="YVR6" placeholder="e.g., YVR6"></div>
+        <div><label class="fld" for="qrYear">Year</label><input id="qrYear" class="mono" value="2026"></div>
       </div>
       <div class="blk">
         <label class="chk"><input type="checkbox" id="optSite"> Show site code above the number</label>
-        <label class="chk"><input type="checkbox" id="optQR"> Add scannable QR (asset ID)</label>
+        <label class="chk"><input type="checkbox" id="optQR"> Add scannable QR + asset ID</label>
       </div>
-      <div class="row blk" id="qrRow" style="display:none">
-        <div><label class="fld" for="qrYear">QR year</label><input id="qrYear" class="mono" value="2026"></div>
-        <div></div>
-      </div>
-      <div class="hint" id="assetPreview"></div>
+      <div class="asset-hints" id="assetPreview"></div>
 
       <button class="go" id="go">Generate PDF</button>
       <div class="readout" id="readout"></div>
@@ -195,11 +197,18 @@
           <div class="logo" id="pvLogo"><span class="ph-text">[ logo ]</span></div>
           <div class="ph" id="pvPhone">+1 657-502-6544</div>
         </div>
-        <div id="pvQR"></div>
+        <div id="pvQR"><img id="pvQRimg" alt=""><span class="aid-vert" id="pvAidVert"></span></div>
         <div class="f" id="pvFooter">DO NOT REMOVE THIS TAG</div>
       </div>
+
+      <div class="assetid">
+        <div class="aid-k">Asset ID <span class="aid-sub">(encoded in the QR when enabled)</span></div>
+        <div class="aid-val" id="aidVal">YVR6-E-0001-26</div>
+        <div class="aid-leg" id="aidLeg"></div>
+      </div>
+
       <div class="asset-hints" id="assetHints"></div>
-      <p class="note">Preview shows the chosen format, theme, and options. <strong>Test-print each format on its real stock at 100% scale</strong> before a production run.</p>
+      <p class="note"><strong>Test-print each format on its real stock at 100% scale</strong> before a production run.</p>
     </div>
   </div>
 </div>
@@ -208,18 +217,17 @@
 /* =========================================================================
    ISOLATION LABEL GENERATOR  —  client-side, no server required.
 
-   v1.5.0 adds two toggles:
-     - Site code line (small text above the number); layout reflows when on/off
-     - Scannable QR encoding an asset ID: {year}-{site}-{prefix}{number}
-       (e.g. 2026-YVR6-E-0001). One unique QR per label; the number/logo/phone
-       recenter and the QR sits on the right. Both apply to full-tag formats.
+   v1.6.0:
+     - Asset ID format: {site}-{prefix}{number}-{YY}  (e.g. YVR6-E-0007-26)
+     - When QR is on, the human-readable asset ID also prints VERTICALLY along
+       the right edge beside the QR.
+     - A labeled Asset ID breakdown shows under the preview.
 
    CONFIG (data-driven): THEMES, ENERGY_TYPES, COMPANIES, LAYOUTS.
-   ASSETS load by relative path; serve with /assets beside the file (GitHub Pages).
-   QR library: qrcode-generator (cdnjs). If it fails to load, the QR toggle warns
-   and is skipped rather than crashing.
+   ASSETS load by relative path; serve with /assets beside the file.
+   QR library: qrcode-generator (cdnjs); skipped with a warning if it fails.
    ========================================================================= */
-const VERSION = "1.5.0";
+const VERSION = "1.6.0";
 const BUILD_DATE = "2026-06-17";
 const PT = 72;
 
@@ -304,10 +312,10 @@ function makeQR(text){
   for(let r=0;r<n;r++) for(let col=0;col<n;col++) if(qr.isDark(r,col)) ctx.fillRect((col+margin)*scale,(r+margin)*scale,scale,scale);
   return _qrCv.toDataURL('image/png');
 }
-function assetID(n){
-  const yr=($('qrYear').value||'').trim(), st=($('siteCode').value||'').trim();
-  return [yr, st, fmt(n)].filter(Boolean).join('-');
-}
+function padBody(n){ const pad=parseInt($('pad').value,10)||0; return pad>0?String(n).padStart(pad,'0'):String(n); }
+function fmt(n){ return ($('prefix').value||'')+padBody(n); }
+function yy(){ const yr=($('qrYear').value||'').trim(); return yr.length>2 ? yr.slice(-2) : yr; }
+function assetID(n){ return [($('siteCode').value||'').trim(), fmt(n), yy()].filter(Boolean).join('-'); }
 
 /* ---------- selections ---------- */
 async function applyEnergy(){
@@ -324,7 +332,7 @@ function applyTheme(t){
   const tag=$('tag');
   tag.style.borderColor=col; tag.style.background=bg;
   $('pvHeader').style.color=col; $('pvNum').style.color=nu;
-  $('pvSite').style.color=col; $('pvFooter').style.color=col;
+  $('pvSite').style.color=col; $('pvFooter').style.color=col; $('pvAidVert').style.color=col;
   $('pvPhone').style.color='rgb(0,0,0)';
 }
 async function applyCompany(){
@@ -394,11 +402,6 @@ function getNumbers(){
   if(!nums.length) return {nums:[], err:'Enter at least one tag number.'};
   return {nums};
 }
-function fmt(n){
-  const pad=parseInt($('pad').value,10)||0;
-  const body=pad>0?String(n).padStart(pad,'0'):String(n);
-  return ($('prefix').value||'')+body;
-}
 
 /* ---------- preview + readout ---------- */
 function refresh(){
@@ -406,13 +409,12 @@ function refresh(){
   const first = nums.length ? nums[0] : 0;
   const L=currentLayout(), isIso = L.content!=='compact';
 
-  // options state
+  // options
   const site = ($('siteCode').value||'').trim();
   const showSite = $('optSite').checked && !!site && isIso;
-  $('qrRow').style.display = $('optQR').checked ? '' : 'none';
-  let showQR = $('optQR').checked && isIso;
+  let showQR = $('optQR').checked && isIso && qrLoaded();
 
-  // site code line
+  // site line
   $('pvSite').textContent = site;
   $('pvSite').style.display = showSite ? '' : 'none';
 
@@ -420,18 +422,24 @@ function refresh(){
   $('pvNum').textContent = fmt(first);
   $('pvPhone').textContent = $('phone').value || '';
 
-  // QR preview + asset hint
-  const tag=$('tag');
-  let assetMsg='';
-  if($('optQR').checked && !isIso){ assetMsg='QR/site code apply to full-tag formats, not the small ID label.'; showQR=false; }
-  else if($('optQR').checked && !qrLoaded()){ assetMsg='QR library did not load — check your connection; QR will be skipped.'; showQR=false; }
-  else if(showQR){ assetMsg = 'Asset ID: ' + assetID(first); }
-  $('assetPreview').textContent = assetMsg;
+  // asset ID legend (always)
+  const stRaw=site, enRaw=($('prefix').value||'').replace(/-+$/,'');
+  $('aidVal').textContent = assetID(first);
+  $('aidLeg').innerHTML = `<b>${stRaw||'—'}</b> site &middot; <b>${enRaw||'—'}</b> energy &middot; <b>${padBody(first)}</b> asset&nbsp;no. &middot; <b>${yy()||'—'}</b> year`;
 
+  // QR + vertical id
+  const tag=$('tag');
   tag.classList.toggle('has-qr', showQR);
-  const qc=$('pvQR');
-  if(showQR){ try{ qc.innerHTML=''; const im=document.createElement('img'); im.src=makeQR(assetID(first)); qc.appendChild(im); }catch(e){ qc.innerHTML=''; } }
-  else { qc.innerHTML=''; }
+  if(showQR){
+    try{ $('pvQRimg').src = makeQR(assetID(first)); }catch(e){ $('pvQRimg').removeAttribute('src'); }
+    $('pvAidVert').textContent = assetID(first);
+  } else { $('pvQRimg').removeAttribute('src'); $('pvAidVert').textContent=''; }
+
+  // QR warnings (controls side)
+  let warn='';
+  if($('optQR').checked && !isIso) warn='QR/site code apply to full-tag formats, not the small ID label.';
+  else if($('optQR').checked && !qrLoaded()) warn='QR library did not load; QR will be skipped.';
+  $('assetPreview').textContent = warn;
 
   // readout
   const ro=$('readout'), go=$('go');
@@ -442,45 +450,61 @@ function refresh(){
   ro.innerHTML = `${nums.length} label${nums.length!==1?'s':''} &middot; ${sheets} sheet${sheets!==1?'s':''} &middot; ${name}`;
 }
 
-/* ---------- content drawers (theme-aware, scale to the label box) ---------- */
+/* ---------- content drawers ---------- */
 function placeAlias(doc, data, type, aspect, bx, by, bw, bh, alias){
   let w=bw, h=bw/aspect; if(h>bh){ h=bh; w=bh*aspect; }
   doc.addImage(data, type, bx+(bw-w)/2, by+(bh-h)/2, w, h, alias, 'FAST');
+}
+function fitFont(doc, text, maxW, startPt, minPt){
+  let fs=startPt; doc.setFontSize(fs); let g=0;
+  while(fs>minPt && doc.getTextWidth(text) > maxW && g++<200){ fs-=0.5; doc.setFontSize(fs); }
+  return fs;
 }
 function drawIso(doc,x,y,w,h,c){
   const cx=x+w/2, ins=h*0.045, r=(c.radius!=null?c.radius:h*0.0625);
   if(!isWhite(c.bg)){ doc.setFillColor(...c.bg); doc.roundedRect(x+h*0.015,y+h*0.015,w-h*0.03,h-h*0.03,h*0.075,h*0.075,'F'); }
   doc.setDrawColor(...c.col); doc.setLineWidth(Math.max(1,h*0.015));
   doc.roundedRect(x+ins,y+ins,w-2*ins,h-2*ins,r,r,'S');
-  // header
-  doc.setTextColor(...c.col); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.072);
-  doc.text(c.header,cx,y+h*0.155,{align:'center',maxWidth:w*0.92});
+  // header (fit to one line)
+  doc.setTextColor(...c.col); doc.setFont('helvetica','bold');
+  doc.setFontSize(fitFont(doc,c.header,w*0.92,h*0.072,h*0.04));
+  doc.text(c.header,cx,y+h*0.155,{align:'center'});
   // symbol left
   if(c.sym) placeAlias(doc,c.sym.dataURL,'PNG',c.sym.aspect,x+w*0.08,y+h*0.30,w*0.24,h*0.42,c.symAlias);
-  // QR right (optional, unique per label)
-  let contentCx;
+  // QR + vertical asset ID (right), optional
+  let qrX=null, qs=0, vstrip=0;
   if(c.showQR && c.qr){
-    const qs=Math.min(w*0.24,h*0.52);
-    const qrX=x+w-ins-w*0.025-qs, qrY=y+(h-qs)/2;
+    vstrip=h*0.10; qs=Math.min(w*0.22,h*0.52);
+    qrX=x+w-ins-vstrip-qs; const qrY=y+(h-qs)/2;
     doc.addImage(c.qr,'PNG',qrX,qrY,qs,qs);
-    contentCx=(x+w*0.31+qrX)/2;
-  } else {
-    contentCx=x+w*0.62;
+    if(c.assetText){
+      doc.setTextColor(...c.col); doc.setFont('helvetica','bold');
+      doc.setFontSize(fitFont(doc,c.assetText,(h-2*ins)*0.94,h*0.05,h*0.03));
+      const W=doc.getTextWidth(c.assetText);
+      doc.text(c.assetText, x+w-ins-vstrip*0.42, y+(h+W)/2, {angle:90});
+    }
   }
+  const contentCx = (c.showQR && qrX!=null) ? (x+w*0.32 + qrX)/2 : x+w*0.62;
+  const leftLim = x + w*0.33;
+  const rightLim = (c.showQR && qrX!=null) ? qrX - w*0.015 : x + w - ins - w*0.03;
+  const maxW = 2*Math.min(contentCx-leftLim, rightLim-contentCx);
   // site code line (optional, above number)
   if(c.showSite && c.site){
-    doc.setTextColor(...c.col); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.062);
+    doc.setTextColor(...c.col); doc.setFont('helvetica','bold');
+    doc.setFontSize(fitFont(doc,c.site,maxW,h*0.062,h*0.035));
     doc.text(c.site,contentCx,y+h*0.27,{align:'center'});
   }
-  // number
-  doc.setTextColor(...c.num); doc.setFont('helvetica','bold'); doc.setFontSize(c.showQR?h*0.155:h*0.19);
+  // number (fit to available width)
+  doc.setTextColor(...c.num); doc.setFont('helvetica','bold');
+  doc.setFontSize(fitFont(doc,c.text,maxW*0.98,c.showQR?h*0.155:h*0.19,h*0.07));
   doc.text(c.text,contentCx,y+h*0.44,{align:'center'});
-  // logo
-  const lw=c.showQR?w*0.24:w*0.285, lh=h*0.20;
+  // logo (clamp width to available space)
+  const lw=Math.min(c.showQR?w*0.26:w*0.285, maxW*0.95), lh=h*0.20;
   if(c.logo) placeAlias(doc,c.logo.dataURL,c.logoFmt,c.logo.aspect,contentCx-lw/2,y+h*0.50,lw,lh,c.logoAlias);
   else { doc.setTextColor(...GREY); doc.setFont('helvetica','italic'); doc.setFontSize(h*0.055); doc.text('[ logo ]',contentCx,y+h*0.61,{align:'center'}); }
-  // phone (black)
-  doc.setTextColor(...BLACK); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.08);
+  // phone (black; sits below symbol/QR so it can run wide)
+  doc.setTextColor(...BLACK); doc.setFont('helvetica','bold');
+  doc.setFontSize(fitFont(doc,c.phone,(w-2*ins)*0.7,h*0.08,h*0.05));
   doc.text(c.phone,contentCx,y+h*0.79,{align:'center'});
   // footer
   doc.setTextColor(...c.col); doc.setFont('helvetica','bold'); doc.setFontSize(h*0.054);
@@ -541,7 +565,7 @@ async function generate(){
       if(i>0 && i%g.perPage===0) doc.addPage();
       const {x,y}=slotXY(g,i);
       ctx.text=fmt(nums[i]);
-      ctx.qr = showQR ? makeQR(assetID(nums[i])) : null;
+      if(showQR){ const aid=assetID(nums[i]); ctx.assetText=aid; ctx.qr=makeQR(aid); } else { ctx.assetText=null; ctx.qr=null; }
       drawer(doc,x,y,g.lw,g.lh,ctx);
       if(i%CHUNK===0){ setProgress(i,nums.length,'Generating PDF'); await sleepFrame(); }
     }
