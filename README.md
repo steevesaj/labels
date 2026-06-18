@@ -55,13 +55,18 @@ Semantic Versioning — `MAJOR.MINOR.PATCH`:
 - **MAJOR** (`x.0.0`) — structural redesign or any breaking change.
 
 The version is the single source of truth in one constant (`VERSION`) and surfaces in three places:
-1. The **header badge** in the UI (`v1.3.0`).
+1. The **header badge** in the UI (`v1.4.0`).
 2. The **PDF metadata** of every generated sheet (creator + keywords include the version, the generation date, and the tag range) — so any printed sheet is traceable to the exact build and parameters that produced it.
 3. The **changelog** below.
 
 **To release a new version:** update `VERSION` and `BUILD_DATE` at the top of the file, add a changelog entry, and (if using git) tag the commit `vX.Y.Z`.
 
 ### Changelog
+
+#### v1.4.0 — 2026-06-17
+- **Per-type colour themes** (`THEMES` config): the perimeter, header, number, and footer take the energy type's colour; the **phone number stays black**; the background can differ. Electrical = red on white (black number, per legacy), Gas = orange on white, Pneumatic = blue on white, Gravity = black on **yellow**, Water = teal on white, Hydraulic = blue on white. Symbol artwork keeps its own colours.
+- New default phone numbers: Power Solutions Group `+1 657-502-6544`, Magna IV Engineering `+1 604-421-8020`.
+- Default range is now **1–1000** (a full band).
 
 #### v1.3.0 — 2026-06-17
 - **Label-format selector** (`LAYOUTS` config): Isolation 2"×4" 10-up (Avery 5163/8163, default), Large warning 3⅓"×4" 6-up (5164/8164), Small asset ID 1"×2⅝" 30-up (5160/8160), plus a **Custom sheet builder** (page Letter/A4, label W/H, columns/rows, margins, gaps, corner radius). Geometry is generic — label content scales to the box.
